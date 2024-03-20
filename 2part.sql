@@ -130,7 +130,7 @@ CREATE TABLE CoffeeType (
 CREATE TABLE CoffeeTypeEvent (
     CoffeeTypeID NUMBER,
     EventID NUMBER,
-    FOREIGN KEY (CoffeeTypeID) REFERENCES CoffeeType,
+    FOREIGN KEY (CoffeeTypeID) REFERENCES CoffeeType(CoffeeTypeID),
     FOREIGN KEY (EventID) REFERENCES Event
 );
 
@@ -143,3 +143,106 @@ BEGIN
     :new.ConsumerID := ConsumerIdSequence.NEXTVAL;
 END ConsumerIdGenerator;
 /
+
+-- Inserting data into the tables
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('JohnDoe', 'Espresso', 'Americano', 'Starbucks', 3);
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('CafeCoder', 'Cold Brew', 'Cappuccino', 'CodeCafe', 2);
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('CoffeeLover', 'Turkish Coffee', 'Latte', 'CoffeeHouse', 4);
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('CoffeeAddict', 'Espresso', 'Espresso', 'CoffeeHouse', 5);
+
+INSERT INTO Worker (WorkerID, WorkExperience, ConsumerID)
+    VALUES (1, '5 years', 1); --maybe should be integer WorkExperience
+INSERT INTO Worker (WorkerID, WorkExperience, ConsumerID)
+    VALUES (2, '3 years', 2);
+
+INSERT INTO Owner (OwnerID, WorkerID)
+    VALUES (1, 1);
+INSERT INTO Owner (OwnerID, WorkerID)
+    VALUES (2, 2);
+
+
+INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
+    VALUES (1, 'CodeCafe', 'Ceska 24', TO_TIMESTAMP('08:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('22:00:00', 'HH24:MI:SS'), 50, 'Cozy cafe with a wide selection of coffee blends.', 1);
+
+INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
+    VALUES (2, 'CoffeeHouse', 'Slevacska 12', TO_TIMESTAMP('07:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('23:00:00', 'HH24:MI:SS'), 60, 'Modern cafe with a wide selection of coffee blends.', 2);
+
+INSERT INTO CafeWorker (WorkerID, CafeID)
+    VALUES (1, 1);
+INSERT INTO CafeWorker (WorkerID, CafeID)
+    VALUES (2, 2);
+
+
+INSERT INTO Event (EventID, EventDate, Capacity, Price, EventDescription, OwnerID, CafeID)
+    VALUES (1, TO_DATE('2024-12-24', 'YYYY-MM-DD'), 30, 5.00, 'Christmas event with live music.', 1, 1);
+
+INSERT INTO Event (EventID, EventDate, Capacity, Price, EventDescription, OwnerID, CafeID)
+    VALUES (2, TO_DATE('2024-12-31', 'YYYY-MM-DD'), 40, 10.00, 'New Year''s Eve party with fireworks.', 2, 2);
+
+INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (1, TO_DATE('2024-10-24', 'YYYY-MM-DD'), 'Great coffee and atmosphere.', 5, 1);
+
+INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (2, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 2);
+
+
+INSERT INTO CafeReview (ReviewID, CafeID)
+    VALUES (1, 1);
+INSERT INTO CafeReview (ReviewID, CafeID)
+    VALUES (2, 2);
+
+INSERT INTO EventReview (ReviewID, EventID)
+    VALUES (1, 1);
+INSERT INTO EventReview (ReviewID, EventID)
+    VALUES (2, 2);
+
+INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerID, ReviewID)
+    VALUES (1, TO_DATE('2024-10-25', 'YYYY-MM-DD'), 'I agree, the coffee is amazing.', 1, 1);
+
+INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerID, ReviewID)
+    VALUES (2, TO_DATE('2024-11-25', 'YYYY-MM-DD'), 'I think the service is great.', 2, 2);
+
+
+INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (3, TO_DATE('2024-12-24', 'YYYY-MM-DD'), 'Great coffee and atmosphere.', 5, 3);
+
+INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (4, TO_DATE('2024-12-31', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 4);
+
+INSERT INTO CafeReview (ReviewID, CafeID)
+    VALUES (3, 1);
+INSERT INTO CafeReview (ReviewID, CafeID)
+    VALUES (4, 2);
+
+INSERT INTO EventReview (ReviewID, EventID)
+    VALUES (3, 1);
+INSERT INTO EventReview (ReviewID, EventID)
+    VALUES (4, 2);
+
+INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
+    VALUES (1, 1, 1);
+INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
+    VALUES (2, 2, 1);
+
+INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeTypeID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
+    VALUES (1, 1, 'Espresso Blend', 'A blend of coffee beans suitable for espresso.', 1);
+INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeTypeID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
+    VALUES (2, 2, 'House Blend', 'A blend of coffee beans suitable for any coffee preparation.', 2);
+
+INSERT INTO CoffeeType (CoffeeTypeID, CoffeeTypeName, Taste, AreaOfOrigin, Quality, CoffeeBlendID)
+    VALUES (1, 'Arabica', 'Sweet', 'Ethiopia', 5, 1);
+INSERT INTO CoffeeType (CoffeeTypeID, CoffeeTypeName, Taste, AreaOfOrigin, Quality, CoffeeBlendID)
+    VALUES (2, 'Robusta', 'Bitter', 'Vietnam', 4, 2);
+INSERT INTO CoffeeType (CoffeeTypeID, CoffeeTypeName, Taste, AreaOfOrigin, Quality, CoffeeBlendID)
+    VALUES (3, 'Liberica', 'Fruity', 'Liberia', 3, 1);
+INSERT INTO CoffeeType (CoffeeTypeID, CoffeeTypeName, Taste, AreaOfOrigin, Quality, CoffeeBlendID)
+    VALUES (4, 'Excelsa', 'Tart', 'Philippines', 4, 2);
+
+INSERT INTO CoffeeTypeEvent (CoffeeTypeID, EventID)
+    VALUES (1, 1);
+INSERT INTO CoffeeTypeEvent (CoffeeTypeID, EventID)
+    VALUES (2, 2);
