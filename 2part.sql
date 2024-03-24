@@ -15,7 +15,7 @@ DROP TABLE Consumer;
 DROP SEQUENCE ConsumerIdSequence;
 
 CREATE TABLE Consumer (
-    ConsumerID NUMBER PRIMARY KEY,
+    ConsumerID NUMBER NOT NULL PRIMARY KEY,
     UserName VARCHAR(20) NOT NULL,
     FavoriteCoffeePreparation VARCHAR(20),
     FavoriteCoffee VARCHAR(20),
@@ -24,22 +24,20 @@ CREATE TABLE Consumer (
 );
 
 CREATE TABLE Worker (
-    WorkerID NUMBER PRIMARY KEY,
+    WorkerID NUMBER NOT NULL PRIMARY KEY,
     WorkExperience VARCHAR(20) NOT NULL,
-    ConsumerID  NUMBER NOT NULL,
-    FOREIGN KEY (ConsumerID) REFERENCES Consumer(ConsumerID)
+    FOREIGN KEY (WorkerID) REFERENCES Consumer(ConsumerID)
 );
 
 CREATE TABLE Owner (
-    OwnerID NUMBER PRIMARY KEY,
-    WorkerID NUMBER NOT NULL,
-    FOREIGN KEY (WorkerID) REFERENCES Worker(WorkerID)
+    OwnerID NUMBER NOT NULL PRIMARY KEY,
+    FOREIGN KEY (OwnerID) REFERENCES Worker(WorkerID)
 );
 
 CREATE TABLE Cafe (
-    CafeID NUMBER PRIMARY KEY,
+    CafeID NUMBER NOT NULL PRIMARY KEY,
     CafeName VARCHAR(20) NOT NULL,
-    CafeAddress VARCHAR(20),
+    CafeAddress VARCHAR(20) NOT NULL,
     OpenTime TIMESTAMP,
     CloseTime TIMESTAMP,
     Capacity NUMBER,
@@ -49,49 +47,49 @@ CREATE TABLE Cafe (
 );
 
 CREATE TABLE CafeWorker (
-    WorkerID NUMBER,
-    CafeID NUMBER,
+    WorkerID NUMBER NOT NULL,
+    CafeID NUMBER NOT NULL,
     FOREIGN KEY (WorkerID) REFERENCES Worker(WorkerID),
     FOREIGN KEY (CafeID) REFERENCES Cafe(CafeID)
 );
 
 CREATE TABLE Event (
-    EventID NUMBER PRIMARY KEY,
+    EventID NUMBER NOT NULL PRIMARY KEY,
     EventDate DATE NOT NULL,
     Capacity NUMBER,
     Price DECIMAL(5,2),
     EventDescription VARCHAR(256),
     OwnerID NUMBER NOT NULL,
-    CafeID NUMBER,
+    CafeID NUMBER NOT NULL,
     FOREIGN KEY (OwnerID) REFERENCES Owner(OwnerID),
     FOREIGN KEY (CafeID) REFERENCES Cafe(CafeID)
 );
 
 CREATE TABLE Review (
-    ReviewID NUMBER PRIMARY KEY,
-    ReviewDate DATE,
+    ReviewID NUMBER NOT NULL PRIMARY KEY,
+    ReviewDate DATE NOT NULL,
     ReviewDescription VARCHAR(256),
-    Rating NUMBER(1) CHECK (Rating BETWEEN 1 AND 5),
+    Rating NUMBER(1) NOT NULL CHECK (Rating BETWEEN 1 AND 5),
     ConsumerID NUMBER NOT NULL,
     FOREIGN KEY (ConsumerID) REFERENCES Consumer(ConsumerID)
 );
 
 CREATE TABLE CafeReview (
-    ReviewID NUMBER,
-    CafeID NUMBER,
-    FOREIGN KEY (ReviewID) REFERENCES Review,
-    FOREIGN KEY (CafeID) REFERENCES Cafe
+    CafeReviewID NUMBER NOT NULL PRIMARY KEY,
+    CafeID NUMBER NOT NULL,
+    FOREIGN KEY (CafeReviewID) REFERENCES Review(ReviewID),
+    FOREIGN KEY (CafeID) REFERENCES Cafe(CafeID)
 );
 
 CREATE TABLE EventReview (
-    ReviewID NUMBER PRIMARY KEY,
+    EventReviewID NUMBER NOT NULL PRIMARY KEY,
     EventID NUMBER NOT NULL,
-    FOREIGN KEY (ReviewID) REFERENCES Review,
-    FOREIGN KEY (EventID) REFERENCES Event
+    FOREIGN KEY (EventReviewID) REFERENCES Review(ReviewID),
+    FOREIGN KEY (EventID) REFERENCES Event(EventID)
 );
 
 CREATE TABLE ReviewComment (
-    CommentID NUMBER PRIMARY KEY,
+    CommentID NUMBER NOT NULL PRIMARY KEY,
     CommentDate DATE NOT NULL,
     CommentDescription VARCHAR(256) NOT NULL,
     ConsumerID NUMBER NOT NULL,
@@ -103,14 +101,13 @@ CREATE TABLE ReviewComment (
 CREATE TABLE CommentEvaluation (
     UserID NUMBER NOT NULL,
     CommentID NUMBER NOT NULL,
-    EvaluationStatus NUMBER CHECK (EvaluationStatus IN (-1, 1)),
+    EvaluationStatus NUMBER NOT NULL CHECK (EvaluationStatus IN (-1, 1)),
     FOREIGN KEY (UserID) REFERENCES Consumer(ConsumerID),
     FOREIGN KEY (CommentID) REFERENCES ReviewComment(CommentID)
 );
 
 CREATE TABLE CoffeeBlend (
-    CoffeeBlendID NUMBER PRIMARY KEY,
-    CoffeeTypeID NUMBER,
+    CoffeeBlendID NUMBER NOT NULL PRIMARY KEY,
     CoffeeBlendName VARCHAR(20) NOT NULL,
     CoffeeBlendDescription VARCHAR(256),
     CafeID NUMBER NOT NULL,
@@ -118,18 +115,18 @@ CREATE TABLE CoffeeBlend (
 );
 
 CREATE TABLE CoffeeType (
-    CoffeeTypeID NUMBER PRIMARY KEY,
+    CoffeeTypeID NUMBER NOT NULL PRIMARY KEY,
     CoffeeTypeName VARCHAR(20) NOT NULL,
-    Taste VARCHAR(128),
-    AreaOfOrigin VARCHAR(20),
-    Quality NUMBER,
+    Taste VARCHAR(128) NOT NULL,
+    AreaOfOrigin VARCHAR(20) NOT NULL ,
+    Quality NUMBER NOT NULL CHECK (Quality BETWEEN 1 AND 10),
     CoffeeBlendID NUMBER NOT NULL,
     FOREIGN KEY (CoffeeBlendID) REFERENCES CoffeeBlend(CoffeeBlendID)
 );
 
 CREATE TABLE CoffeeTypeEvent (
-    CoffeeTypeID NUMBER,
-    EventID NUMBER,
+    CoffeeTypeID NUMBER NOT NULL,
+    EventID NUMBER NOT NULL,
     FOREIGN KEY (CoffeeTypeID) REFERENCES CoffeeType(CoffeeTypeID),
     FOREIGN KEY (EventID) REFERENCES Event
 );
@@ -154,15 +151,15 @@ INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, Favor
 INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
     VALUES ('CoffeeAddict', 'Espresso', 'Espresso', 'CoffeeHouse', 5);
 
-INSERT INTO Worker (WorkerID, WorkExperience, ConsumerID)
-    VALUES (1, '5 years', 1); --maybe should be integer WorkExperience
-INSERT INTO Worker (WorkerID, WorkExperience, ConsumerID)
-    VALUES (2, '3 years', 2);
+INSERT INTO Worker (WorkerID, WorkExperience)
+    VALUES (1, '5 years'); --maybe should be integer WorkExperience
+INSERT INTO Worker (WorkerID, WorkExperience)
+    VALUES (2, '3 years');
 
-INSERT INTO Owner (OwnerID, WorkerID)
-    VALUES (1, 1);
-INSERT INTO Owner (OwnerID, WorkerID)
-    VALUES (2, 2);
+INSERT INTO Owner (OwnerID)
+    VALUES (1);
+INSERT INTO Owner (OwnerID)
+    VALUES (2);
 
 
 INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
@@ -190,14 +187,14 @@ INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
     VALUES (2, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 2);
 
 
-INSERT INTO CafeReview (ReviewID, CafeID)
+INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (1, 1);
-INSERT INTO CafeReview (ReviewID, CafeID)
+INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (2, 2);
 
-INSERT INTO EventReview (ReviewID, EventID)
+INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (1, 1);
-INSERT INTO EventReview (ReviewID, EventID)
+INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (2, 2);
 
 INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerID, ReviewID)
@@ -213,14 +210,14 @@ INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
 INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
     VALUES (4, TO_DATE('2024-12-31', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 4);
 
-INSERT INTO CafeReview (ReviewID, CafeID)
+INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (3, 1);
-INSERT INTO CafeReview (ReviewID, CafeID)
+INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (4, 2);
 
-INSERT INTO EventReview (ReviewID, EventID)
+INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (3, 1);
-INSERT INTO EventReview (ReviewID, EventID)
+INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (4, 2);
 
 INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
@@ -228,10 +225,10 @@ INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
 INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
     VALUES (2, 2, 1);
 
-INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeTypeID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
-    VALUES (1, 1, 'Espresso Blend', 'A blend of coffee beans suitable for espresso.', 1);
-INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeTypeID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
-    VALUES (2, 2, 'House Blend', 'A blend of coffee beans suitable for any coffee preparation.', 2);
+INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
+    VALUES (1, 'Espresso Blend', 'A blend of coffee beans suitable for espresso.', 1);
+INSERT INTO CoffeeBlend (CoffeeBlendID, CoffeeBlendName, CoffeeBlendDescription, CafeID)
+    VALUES (2, 'House Blend', 'A blend of coffee beans suitable for any coffee preparation.', 2);
 
 INSERT INTO CoffeeType (CoffeeTypeID, CoffeeTypeName, Taste, AreaOfOrigin, Quality, CoffeeBlendID)
     VALUES (1, 'Arabica', 'Sweet', 'Ethiopia', 5, 1);
