@@ -219,23 +219,6 @@ INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerI
 INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerID, ReviewID)
     VALUES (2, TO_DATE('2024-11-25', 'YYYY-MM-DD'), 'I think the service is great.', 2, 2);
 
-
-INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
-    VALUES (3, TO_DATE('2024-12-24', 'YYYY-MM-DD'), 'Great coffee and atmosphere.', 5, 3);
-
-INSERT INTO Review(ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
-    VALUES (4, TO_DATE('2024-12-31', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 4);
-
-INSERT INTO CafeReview (CafeReviewID, CafeID)
-    VALUES (3, 1);
-INSERT INTO CafeReview (CafeReviewID, CafeID)
-    VALUES (4, 2);
-
-INSERT INTO EventReview (EventReviewID, EventID)
-    VALUES (3, 1);
-INSERT INTO EventReview (EventReviewID, EventID)
-    VALUES (4, 2);
-
 INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
     VALUES (1, 1, 1);
 INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
