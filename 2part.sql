@@ -1,3 +1,7 @@
+-- IDS projekt 2024
+-- 2. část - SQL skript pro vytvoření objektů schématu databáze
+-- Autor: xbalat00 a xsamus00
+
 DROP TABLE CoffeeTypeEvent;
 DROP TABLE CoffeeType;
 DROP TABLE CoffeeBlend;
@@ -14,6 +18,9 @@ DROP TABLE Worker;
 DROP TABLE Consumer;
 DROP SEQUENCE ConsumerIdSequence;
 
+-- Consumer tabulka reprezentuje základní entitu pro systém uživatelů (Class Table Inheritance).
+-- Používáme Class Table Inheritance metodu, kde základní třída (Consumer) má svou vlastní tabulku
+-- a specializované třídy (Worker, Owner) mají také své vlastní tabulky, které dědí společné atributy.
 CREATE TABLE Consumer (
     ConsumerID NUMBER NOT NULL PRIMARY KEY,
     UserName VARCHAR(20) NOT NULL,
@@ -23,12 +30,16 @@ CREATE TABLE Consumer (
     DailyCoffeeConsumption NUMBER
 );
 
+-- Worker tabulka je specializací entity Consumer. Každý Worker je Consumer, ale má navíc pracovní zkušenosti.
+-- Vazba na Consumer je reprezentována pomocí cizího klíče ConsumerID, čímž je zachována integrita mezi základní a odvozenou entitou.
 CREATE TABLE Worker (
     WorkerID NUMBER NOT NULL PRIMARY KEY,
     WorkExperience VARCHAR(20) NOT NULL,
     FOREIGN KEY (WorkerID) REFERENCES Consumer(ConsumerID)
 );
 
+-- Owner tabulka je další úroveň specializace entity Worker a tedy i Consumer.
+-- Každý Owner je Worker s odkazem na unikátní WorkerID. Tento design umožňuje, aby každý Owner měl všechny atributy Worker a Consumer.
 CREATE TABLE Owner (
     OwnerID NUMBER NOT NULL PRIMARY KEY,
     FOREIGN KEY (OwnerID) REFERENCES Worker(WorkerID)
@@ -130,18 +141,23 @@ CREATE TABLE CoffeeTypeEvent (
     FOREIGN KEY (CoffeeTypeID) REFERENCES CoffeeType(CoffeeTypeID),
     FOREIGN KEY (EventID) REFERENCES Event
 );
-
-CREATE SEQUENCE ConsumerIdSequence;
-
+-- Sequence pro generování unikátního identifikátoru pro Consumer tabulku.
+CREATE SEQUENCE ConsumerIdSequence
+START WITH 1
+INCREMENT BY 1;
+-- Trigger pro generování unikátního identifikátoru pro Consumer tabulku.
 CREATE OR REPLACE TRIGGER ConsumerIdGenerator
 BEFORE INSERT ON Consumer
 FOR EACH ROW
+WHEN (new.ConsumerID IS NULL)
 BEGIN
-    :new.ConsumerID := ConsumerIdSequence.NEXTVAL;
-END ConsumerIdGenerator;
+    SELECT ConsumerIdSequence.NEXTVAL
+    INTO :new.ConsumerID
+    FROM dual;
+END;
 /
 
--- Inserting data into the tables
+-------- Vložení testovacích dat do tabulek. --------
 INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
     VALUES ('JohnDoe', 'Espresso', 'Americano', 'Starbucks', 3);
 INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
@@ -152,7 +168,7 @@ INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, Favor
     VALUES ('CoffeeAddict', 'Espresso', 'Espresso', 'CoffeeHouse', 5);
 
 INSERT INTO Worker (WorkerID, WorkExperience)
-    VALUES (1, '5 years'); --maybe should be integer WorkExperience
+    VALUES (1, '5 years');
 INSERT INTO Worker (WorkerID, WorkExperience)
     VALUES (2, '3 years');
 
