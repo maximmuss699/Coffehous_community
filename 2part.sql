@@ -1,5 +1,5 @@
 -- IDS projekt 2024
--- 2. část - SQL skript pro vytvoření objektů schématu databáze
+-- 3. část - SQL skript pro vytvoření objektů schématu databáze
 -- Autor: xbalat00 a xsamus00
 
 DROP TABLE CoffeeTypeEvent;
@@ -166,11 +166,17 @@ INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, Favor
     VALUES ('CoffeeLover', 'Turkish Coffee', 'Latte', 'CoffeeHouse', 4);
 INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
     VALUES ('CoffeeAddict', 'Espresso', 'Espresso', 'CoffeeHouse', 5);
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('CoffeeFan', 'Cappuccino', 'Cappuccino', 'Friedrich', 3);
+INSERT INTO Consumer (UserName, FavoriteCoffeePreparation, FavoriteCoffee, FavoriteCafe, DailyCoffeeConsumption)
+    VALUES ('CoffeeHolic', 'Latte', 'Latte', 'CodeCafe', 4);
 
 INSERT INTO Worker (WorkerID, WorkExperience)
     VALUES (1, '5 years');
 INSERT INTO Worker (WorkerID, WorkExperience)
     VALUES (2, '3 years');
+INSERT INTO Worker (WorkerID, WorkExperience)
+    VALUES (3, '2 years');
 
 INSERT INTO Owner (OwnerID)
     VALUES (1);
@@ -184,10 +190,17 @@ INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, 
 INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
     VALUES (2, 'CoffeeHouse', 'Slevacska 12', TO_TIMESTAMP('07:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('23:00:00', 'HH24:MI:SS'), 60, 'Modern cafe with a wide selection of coffee blends.', 2);
 
+INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
+    VALUES (3, 'Friedrich', 'Smetanova 763', TO_TIMESTAMP('06:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('23:00:00', 'HH24:MI:SS'), 70, 'International coffee chain with a wide selection of coffee blends.', 1);
+
+
+
 INSERT INTO CafeWorker (WorkerID, CafeID)
     VALUES (1, 1);
 INSERT INTO CafeWorker (WorkerID, CafeID)
     VALUES (2, 2);
+INSERT INTO CafeWorker (WorkerID, CafeID)
+    VALUES (3, 3);
 
 
 INSERT INTO Event (EventID, EventDate, Capacity, Price, EventDescription, OwnerID, CafeID)
@@ -201,12 +214,16 @@ INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
 
 INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
     VALUES (2, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 2);
+INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (3, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'The coffee was terrible.', 1, 3);
 
 
 INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (1, 1);
 INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (2, 2);
+INSERT INTO CafeReview (CafeReviewID, CafeID)
+    VALUES (3, 2);
 
 INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (1, 1);
@@ -218,6 +235,7 @@ INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerI
 
 INSERT INTO ReviewComment (CommentID, CommentDate, CommentDescription, ConsumerID, ReviewID)
     VALUES (2, TO_DATE('2024-11-25', 'YYYY-MM-DD'), 'I think the service is great.', 2, 2);
+
 
 INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
     VALUES (1, 1, 1);
@@ -242,3 +260,70 @@ INSERT INTO CoffeeTypeEvent (CoffeeTypeID, EventID)
     VALUES (1, 1);
 INSERT INTO CoffeeTypeEvent (CoffeeTypeID, EventID)
     VALUES (2, 2);
+
+
+--- SELECT dotaz na seznam kaváren a jejich pracovníků
+--- Spojení dvou tabulek Cafe a CafeWorker pomocí JOIN klauzule.
+SELECT CafeWorker.CafeID, CafeWorker.WorkerID,  Worker.WorkExperience
+FROM CafeWorker
+INNER JOIN Worker ON CafeWorker.WorkerID = Worker.WorkerID;
+
+--- SELECT dotaz na seznam pracovníků a jejich pracovní zkušenosti
+--- Spojení dvou tabulek Worker a Consumer pomocí JOIN klauzule.
+SELECT Consumer.UserName, Worker.WorkExperience
+FROM Worker
+INNER JOIN Consumer ON Worker.WorkerID = Consumer.ConsumerID;
+
+--- SELECT dotaz na průměrné hodnocení kaváren
+--- Spojení trech tabulek Cafe, CafeReview a Review pomocí JOIN klauzule.
+--- Výpočet průměrného hodnocení kaváren pomocí AVG funkce.
+--- Group by klauzule slouží k seskupení výsledků podle názvu kavárny.
+SELECT Cafe.CafeName, AVG(Review.Rating) AS AverageRating
+FROM Cafe
+INNER JOIN CafeReview ON Cafe.CafeID = CafeReview.CafeID
+INNER JOIN Review  ON CafeReview.CafeReviewID = Review.ReviewID
+GROUP BY Cafe.CafeName;
+
+--- SELECT dotaz na počet pracovníků v jednotlivých kavárnách
+--- Spojení dvou tabulek Cafe a CafeWorker pomocí JOIN klauzule.
+--- Výpočet počtu pracovníků v jednotlivých kavárnách pomocí COUNT funkce.
+--- Group by klauzule slouží k seskupení výsledků podle ID kavárny a názvu kavárny.
+SELECT Cafe.CafeID, Cafe.CafeName, COUNT(CafeWorker.WorkerID) AS NumberOfWorkers
+FROM CafeWorker
+JOIN Cafe ON CafeWorker.CafeID = Cafe.CafeID
+GROUP BY Cafe.CafeID, Cafe.CafeName;
+
+--- SELECT dotaz na seznam kaváren, které mají nějakou událost
+--- Použití poddotazu pro výběr kaváren, které mají nějakou událost.
+--- Výběr kaváren pomocí EXISTS klauzule.
+SELECT Cafe.CafeID, Cafe.CafeName
+FROM Cafe
+WHERE EXISTS (
+    SELECT 1
+    FROM Event
+    WHERE Event.CafeID = Cafe.CafeID
+);
+
+--- SELECT dotaz, který zobrazí všechny recenze kaváren, které mají alespoň jednu událost
+--- Použití poddotazu pro výběr událostí, které se konají v kavárně s ID 1.
+SELECT Review.ReviewID, Review.ReviewDescription, Cafe.CafeName
+FROM Review
+INNER JOIN CafeReview ON Review.ReviewID = CafeReview.CafeReviewID
+INNER JOIN Cafe ON CafeReview.CafeID = Cafe.CafeID
+WHERE Cafe.CafeID IN (
+    SELECT Event.CafeID
+    FROM Event
+);
+
+-- SELECT dotaz, který zobrazí všechny uzivatele, kterí napsali recenzi na kavárnu
+-- Použití poddotazu pro výběr uživatelů, kteří napsali recenzi na kavárnu.
+-- Výběr uživatelů pomocí IN klauzule.
+SELECT Consumer.UserName, Review.ReviewDescription
+FROM Consumer
+INNER JOIN Review ON Consumer.ConsumerID = Review.ConsumerID
+WHERE Consumer.ConsumerID IN (
+    SELECT R.ConsumerID
+    FROM Review R
+    JOIN CafeReview CR ON R.ReviewID = CR.CafeReviewID
+);
+
