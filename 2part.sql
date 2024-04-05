@@ -60,6 +60,7 @@ CREATE TABLE Cafe (
 CREATE TABLE CafeWorker (
     WorkerID NUMBER NOT NULL,
     CafeID NUMBER NOT NULL,
+    PRIMARY KEY (WorkerID, CafeID),
     FOREIGN KEY (WorkerID) REFERENCES Worker(WorkerID),
     FOREIGN KEY (CafeID) REFERENCES Cafe(CafeID)
 );
@@ -112,6 +113,7 @@ CREATE TABLE ReviewComment (
 CREATE TABLE CommentEvaluation (
     UserID NUMBER NOT NULL,
     CommentID NUMBER NOT NULL,
+    PRIMARY KEY (UserID, CommentID),
     EvaluationStatus NUMBER NOT NULL CHECK (EvaluationStatus IN (-1, 1)),
     FOREIGN KEY (UserID) REFERENCES Consumer(ConsumerID),
     FOREIGN KEY (CommentID) REFERENCES ReviewComment(CommentID)
@@ -138,6 +140,7 @@ CREATE TABLE CoffeeType (
 CREATE TABLE CoffeeTypeEvent (
     CoffeeTypeID NUMBER NOT NULL,
     EventID NUMBER NOT NULL,
+    PRIMARY KEY (CoffeeTypeID, EventID),
     FOREIGN KEY (CoffeeTypeID) REFERENCES CoffeeType(CoffeeTypeID),
     FOREIGN KEY (EventID) REFERENCES Event
 );
