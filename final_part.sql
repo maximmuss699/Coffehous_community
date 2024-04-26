@@ -333,8 +333,8 @@ WHERE Consumer.ConsumerID IN (
 
 
 
--- Materializovany pohled na prumerne hodnoceni kavaren
--- Vytvoreni materializovaneho pohledu cafe_avg_rating, ktery obsahuje prumerne hodnoceni kavaren.
+--------- Materializovany pohled na prumerne hodnoceni kavaren
+--------- Vytvoreni materializovaneho pohledu cafe_avg_rating, ktery obsahuje prumerne hodnoceni kavaren.
 CREATE MATERIALIZED VIEW cafe_avg_rating AS
 SELECT c.CafeID, c.CafeName, AVG(r.Rating) AS AverageRating
 FROM Cafe c
@@ -361,9 +361,40 @@ SELECT * FROM cafe_avg_rating;
 
 
 
+--------- Vytvoření komplexního dotazu SELECT využívajícího klauzuli WITH a operátor CASE
+WITH CafeRatings AS (
+    -- Tato část SQL dotazu (CTE) slouží k výpočtu průměrného hodnocení a celkového počtu recenzí pro každé kavárny.
+    -- Slouží k agregaci dat z více tabulek: Cafe, CafeReview a Review.
+    SELECT
+        c.CafeID,
+        c.CafeName,
+        AVG(r.Rating) AS AverageRating,
+        COUNT(r.ReviewID) AS TotalReviews
+    FROM Cafe c
+    JOIN CafeReview cr ON c.CafeID = cr.CafeID
+    JOIN Review r ON cr.CafeReviewID = r.ReviewID
+    GROUP BY c.CafeID, c.CafeName
+)
+SELECT
+    CafeID,
+    CafeName,
+    AverageRating,
+    TotalReviews,
+    CASE
+        -- Kategorizace kaváren na základě průměrného hodnocení umožňuje snadněji hodnotit kvalitu služeb.
+        WHEN AverageRating >= 4.5 THEN 'Výborné'
+        WHEN AverageRating >= 3.5 THEN 'Dobré'
+        WHEN AverageRating >= 2.5 THEN 'Dostatečné'
+        ELSE 'Špatné'
+    END AS RatingCategory -- Kategorie hodnocení založené na průměrném hodnocení.
+FROM CafeRatings;
+-- Tento SELECT dotaz získává data z CTE a kategorizuje kavárny podle kvality na základě průměrného hodnocení.
+-- Tyto informace jsou užitečné pro zákazníky při výběru kavárny a pro majitele kaváren, kteří chtějí sledovat výkon svého podniku.
 
 
 
+
+--------- Vytvoření uživatelské role XBALAT00 a přidělení oprávnění pro tabulky v databázi.
 GRANT ALL ON Consumer TO XBALAT00;
 GRANT ALL ON Worker TO XBALAT00;
 GRANT ALL ON Owner TO XBALAT00;
