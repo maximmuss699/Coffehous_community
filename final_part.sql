@@ -17,6 +17,7 @@ DROP TABLE Owner;
 DROP TABLE Worker;
 DROP TABLE Consumer;
 DROP SEQUENCE ConsumerIdSequence;
+DROP MATERIALIZED VIEW cafe_avg_rating;
 
 -- Consumer tabulka reprezentuje základní entitu pro systém uživatelů (Class Table Inheritance).
 -- Používáme Class Table Inheritance metodu, kde základní třída (Consumer) má svou vlastní tabulku
@@ -329,6 +330,39 @@ WHERE Consumer.ConsumerID IN (
     FROM Review R
     JOIN CafeReview CR ON R.ReviewID = CR.CafeReviewID
 );
+
+
+
+-- Materializovany pohled na prumerne hodnoceni kavaren
+-- Vytvoreni materializovaneho pohledu cafe_avg_rating, ktery obsahuje prumerne hodnoceni kavaren.
+CREATE MATERIALIZED VIEW cafe_avg_rating AS
+SELECT c.CafeID, c.CafeName, AVG(r.Rating) AS AverageRating
+FROM Cafe c
+JOIN CafeReview cr ON c.CafeID = cr.CafeID
+JOIN Review r ON cr.CafeReviewID = r.ReviewID
+GROUP BY c.CafeID, c.CafeName;
+
+-- Zobrazení aktuálních dat z materializovaného pohledu.
+SELECT * FROM cafe_avg_rating;
+
+-- Aktualizace hodnocení v tabulce Review může ovlivnit průměrné hodnocení v pohledu.
+UPDATE Review SET Rating = 5 WHERE ReviewID = 2;
+
+-- Znovu zobrazení dat z pohledu po změně, což neodráží změnu, dokud není pohled explicitně obnoven.
+SELECT * FROM cafe_avg_rating;
+
+-- Explicitní obnovení materializovaného pohledu, aby odrážel změny v podkladových datech.
+BEGIN
+  DBMS_MVIEW.REFRESH('cafe_avg_rating');
+END;
+
+-- Kontrola dat po obnovení pohledu, která nyní odráží nedávné změny v hodnoceních
+SELECT * FROM cafe_avg_rating;
+
+
+
+
+
 
 GRANT ALL ON Consumer TO XBALAT00;
 GRANT ALL ON Worker TO XBALAT00;
