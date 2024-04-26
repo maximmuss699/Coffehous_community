@@ -17,6 +17,7 @@ DROP TABLE Owner;
 DROP TABLE Worker;
 DROP TABLE Consumer;
 DROP SEQUENCE ConsumerIdSequence;
+DROP MATERIALIZED VIEW cafe_avg_rating;
 
 -- Consumer tabulka reprezentuje základní entitu pro systém uživatelů (Class Table Inheritance).
 -- Používáme Class Table Inheritance metodu, kde základní třída (Consumer) má svou vlastní tabulku
@@ -330,6 +331,70 @@ WHERE Consumer.ConsumerID IN (
     JOIN CafeReview CR ON R.ReviewID = CR.CafeReviewID
 );
 
+
+
+--------- Materializovany pohled na prumerne hodnoceni kavaren
+--------- Vytvoreni materializovaneho pohledu cafe_avg_rating, ktery obsahuje prumerne hodnoceni kavaren.
+CREATE MATERIALIZED VIEW cafe_avg_rating AS
+SELECT c.CafeID, c.CafeName, AVG(r.Rating) AS AverageRating
+FROM Cafe c
+JOIN CafeReview cr ON c.CafeID = cr.CafeID
+JOIN Review r ON cr.CafeReviewID = r.ReviewID
+GROUP BY c.CafeID, c.CafeName;
+
+-- Zobrazení aktuálních dat z materializovaného pohledu.
+SELECT * FROM cafe_avg_rating;
+
+-- Aktualizace hodnocení v tabulce Review může ovlivnit průměrné hodnocení v pohledu.
+UPDATE Review SET Rating = 5 WHERE ReviewID = 2;
+
+-- Znovu zobrazení dat z pohledu po změně, což neodráží změnu, dokud není pohled explicitně obnoven.
+SELECT * FROM cafe_avg_rating;
+
+-- Explicitní obnovení materializovaného pohledu, aby odrážel změny v podkladových datech.
+BEGIN
+  DBMS_MVIEW.REFRESH('cafe_avg_rating');
+END;
+
+-- Kontrola dat po obnovení pohledu, která nyní odráží nedávné změny v hodnoceních
+SELECT * FROM cafe_avg_rating;
+
+
+
+--------- Vytvoření komplexního dotazu SELECT využívajícího klauzuli WITH a operátor CASE
+WITH CafeRatings AS (
+    -- Tato část SQL dotazu (CTE) slouží k výpočtu průměrného hodnocení a celkového počtu recenzí pro každé kavárny.
+    -- Slouží k agregaci dat z více tabulek: Cafe, CafeReview a Review.
+    SELECT
+        c.CafeID,
+        c.CafeName,
+        AVG(r.Rating) AS AverageRating,
+        COUNT(r.ReviewID) AS TotalReviews
+    FROM Cafe c
+    JOIN CafeReview cr ON c.CafeID = cr.CafeID
+    JOIN Review r ON cr.CafeReviewID = r.ReviewID
+    GROUP BY c.CafeID, c.CafeName
+)
+SELECT
+    CafeID,
+    CafeName,
+    AverageRating,
+    TotalReviews,
+    CASE
+        -- Kategorizace kaváren na základě průměrného hodnocení umožňuje snadněji hodnotit kvalitu služeb.
+        WHEN AverageRating >= 4.5 THEN 'Výborné'
+        WHEN AverageRating >= 3.5 THEN 'Dobré'
+        WHEN AverageRating >= 2.5 THEN 'Dostatečné'
+        ELSE 'Špatné'
+    END AS RatingCategory -- Kategorie hodnocení založené na průměrném hodnocení.
+FROM CafeRatings;
+-- Tento SELECT dotaz získává data z CTE a kategorizuje kavárny podle kvality na základě průměrného hodnocení.
+-- Tyto informace jsou užitečné pro zákazníky při výběru kavárny a pro majitele kaváren, kteří chtějí sledovat výkon svého podniku.
+
+
+
+
+--------- Vytvoření uživatelské role XBALAT00 a přidělení oprávnění pro tabulky v databázi.
 GRANT ALL ON Consumer TO XBALAT00;
 GRANT ALL ON Worker TO XBALAT00;
 GRANT ALL ON Owner TO XBALAT00;
