@@ -198,7 +198,6 @@ INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, 
     VALUES (3, 'Friedrich', 'Smetanova 763', TO_TIMESTAMP('06:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('23:00:00', 'HH24:MI:SS'), 70, 'International coffee chain with a wide selection of coffee blends.', 1);
 
 
-
 INSERT INTO CafeWorker (WorkerID, CafeID)
     VALUES (1, 1);
 INSERT INTO CafeWorker (WorkerID, CafeID)
@@ -217,9 +216,13 @@ INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
     VALUES (1, TO_DATE('2024-10-24', 'YYYY-MM-DD'), 'Great coffee and atmosphere.', 5, 1);
 
 INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
-    VALUES (2, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 4, 2);
+    VALUES (2, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Good coffee, but the service could be better.', 3, 2);
+
 INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
     VALUES (3, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'The coffee was terrible.', 1, 3);
+
+INSERT INTO Review (ReviewID, ReviewDate, ReviewDescription, Rating, ConsumerID)
+    VALUES (4, TO_DATE('2024-11-24', 'YYYY-MM-DD'), 'Excellent coffee, I can only recommend it.', 5, 3);
 
 
 INSERT INTO CafeReview (CafeReviewID, CafeID)
@@ -227,7 +230,9 @@ INSERT INTO CafeReview (CafeReviewID, CafeID)
 INSERT INTO CafeReview (CafeReviewID, CafeID)
     VALUES (2, 2);
 INSERT INTO CafeReview (CafeReviewID, CafeID)
-    VALUES (3, 2);
+    VALUES (3, 3);
+INSERT INTO CafeReview (CafeReviewID, CafeID)
+    VALUES (4, 2);
 
 INSERT INTO EventReview (EventReviewID, EventID)
     VALUES (1, 1);
@@ -331,6 +336,153 @@ WHERE Consumer.ConsumerID IN (
     JOIN CafeReview CR ON R.ReviewID = CR.CafeReviewID
 );
 
+
+-- Trigger pro kontrolu, zda uživatel s ID pracovníka existuje v tabulce Consumer.
+CREATE OR REPLACE TRIGGER WorkerIdCheck
+    BEFORE INSERT OR UPDATE ON Worker
+    FOR EACH ROW
+DECLARE
+    consumer_exists NUMBER;
+    consumer_not_exists EXCEPTION;
+BEGIN
+    SELECT COUNT(*) INTO consumer_exists FROM Consumer WHERE ConsumerID = :new.WorkerID;
+    IF consumer_exists = 0 THEN
+        RAISE consumer_not_exists;
+    END IF;
+EXCEPTION
+    WHEN consumer_not_exists THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Consumer with ID ' || :new.WorkerID || ' does not exist.');
+END;
+
+-- Vložení vhodných testovacích dat pro trigger.
+INSERT INTO Worker (WorkerID, WorkExperience) VALUES (4, '5 years');
+
+-- Vložení nevhodných testovacích dat.
+INSERT INTO Worker (WorkerID, WorkExperience) VALUES (99, '5 years');
+
+
+-- Trigger pro kontrolu, zda uživatel s ID vlastníka existuje v tabulce Worker.
+CREATE OR REPLACE TRIGGER OwnerIdCheck
+    BEFORE INSERT OR UPDATE ON Owner
+    FOR EACH ROW
+DECLARE
+    worker_exists NUMBER;
+    worker_not_exists EXCEPTION;
+BEGIN
+    SELECT COUNT(*) INTO worker_exists FROM Worker WHERE WorkerID = :new.OwnerID;
+    IF worker_exists = 0 THEN
+        RAISE worker_not_exists;
+    END IF;
+EXCEPTION
+    WHEN worker_not_exists THEN
+        RAISE_APPLICATION_ERROR(-20000, 'Worker with ID ' || :new.OwnerID || ' does not exist.');
+end;
+
+-- Vložení vhodných testovacích dat pro trigger.
+INSERT INTO Owner (OwnerID) VALUES (3);
+
+-- Vložení nevhodných testovacích dat pro trigger.
+INSERT INTO Owner (OwnerID) VALUES (99);
+
+
+-- Trigger pro kontrolu, zda kavárna otevírá dříve než zavírá.
+CREATE OR REPLACE TRIGGER CafeOpenCloseTime
+    BEFORE INSERT OR UPDATE ON Cafe
+    FOR EACH ROW
+BEGIN
+    IF :new.OpenTime >= :new.CloseTime THEN
+        RAISE_APPLICATION_ERROR(-20000, 'Cafe must open earlier then closes.');
+    END IF;
+END;
+
+-- Vložení nevhodných testovacích dat do tabulky Cafe.
+INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
+VALUES (8, 'CafeTest', 'Test 1', TO_TIMESTAMP('08:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('07:00:00', 'HH24:MI:SS'), 50, 'Test', 1);
+
+
+-- Procedura pro výpis recenzí kavárny.
+CREATE OR REPLACE PROCEDURE PrintCafeReviews(CafeToCheck IN NUMBER)
+    IS
+    v_ConsumerID Review.ConsumerID%TYPE;
+    v_Author Consumer.Username%TYPE;
+    v_CafeExists NUMBER;
+    CafeNotExist EXCEPTION;
+    CURSOR c_Review IS
+        SELECT ReviewID, ReviewDescription, Rating, ConsumerID
+        FROM Review INNER JOIN CafeReview ON Review.ReviewID = CafeReview.CafeReviewID
+        WHERE CafeReview.CafeID = CafeToCheck;
+BEGIN
+    SELECT COUNT(*) INTO v_CafeExists FROM Cafe WHERE CafeID = CafeToCheck;
+    IF v_CafeExists = 0 THEN
+        RAISE CafeNotExist;
+    END IF;
+
+    FOR review IN c_Review LOOP
+        v_ConsumerID := review.ConsumerID;
+        SELECT UserName INTO v_Author FROM Consumer WHERE ConsumerID = v_ConsumerID;
+        DBMS_OUTPUT.put_line('Review ID: ' || review.ReviewID || ', Description: ' || review.ReviewDescription || ', Rating: ' || review.Rating || ', Author: ' || v_Author);
+        END LOOP;
+EXCEPTION
+    WHEN CafeNotExist THEN
+        DBMS_OUTPUT.put_line('The cafe with ID ' || CafeToCheck || ' does not exist.');
+END;
+/
+
+BEGIN
+    PrintCafeReviews(2);
+END;
+/
+
+-- Procedura pro výpis všech událostí zavedených v systému.
+CREATE OR REPLACE PROCEDURE PrintEvents IS
+    CURSOR cafe_cursor IS
+        SELECT CafeID, CafeName, CafeAddress, CafeDescription FROM Cafe;
+    CURSOR event_cursor(cafe_id Cafe.CafeID%TYPE) IS
+        SELECT EventDate, Price, Capacity, EventDescription FROM Event WHERE CafeID = cafe_id;
+    event_row event_cursor%ROWTYPE;
+BEGIN
+    FOR cafe_row IN cafe_cursor LOOP
+        OPEN event_cursor(cafe_row.CafeID);
+        FETCH event_cursor INTO event_row;
+        EXIT WHEN event_cursor%NOTFOUND;
+
+        DBMS_OUTPUT.put_line('Cafe: ' || cafe_row.CafeName || ' ' || cafe_row.CafeAddress || ' '  || cafe_row.CafeDescription);
+
+        LOOP
+            EXIT WHEN event_cursor%NOTFOUND;
+            DBMS_OUTPUT.put_line('  Event: ' || event_row.EventDate || ', ' || event_row.Price || 'Kč, capacity: '|| event_row.Capacity || ', ' || event_row.EventDescription);
+            FETCH event_cursor INTO event_row;
+        END LOOP;
+        CLOSE event_cursor;
+    END LOOP;
+END;
+/
+
+BEGIN
+    PrintEvents;
+END;
+/
+
+
+DROP INDEX RatingIndex;
+
+EXPLAIN PLAN FOR
+SELECT Cafe.CafeName, AVG(Review.Rating) AS AverageRating
+FROM Cafe
+     INNER JOIN CafeReview ON Cafe.CafeID = CafeReview.CafeID
+     INNER JOIN Review  ON CafeReview.CafeReviewID = Review.ReviewID
+GROUP BY Cafe.CafeName;
+SELECT plan_table_output FROM TABLE(dbms_xplan.display());
+
+CREATE INDEX RatingIndex ON Review(Rating);
+
+EXPLAIN PLAN FOR
+SELECT Cafe.CafeName, AVG(Review.Rating) AS AverageRating
+FROM Cafe
+     INNER JOIN CafeReview ON Cafe.CafeID = CafeReview.CafeID
+     INNER JOIN Review ON CafeReview.CafeReviewID = Review.ReviewID
+GROUP BY Cafe.CafeName;
+SELECT plan_table_output FROM TABLE(dbms_xplan.display());
 
 
 --------- Materializovany pohled na prumerne hodnoceni kavaren
