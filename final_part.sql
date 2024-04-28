@@ -1,6 +1,6 @@
 -- IDS projekt 2024
--- 3. část - SQL skript pro vytvoření objektů schématu databáze
--- Autor: xbalat00 a xsamus00
+-- 4. část - SQL skript pro vytvoření pokročilých objektů schématu databáze
+-- Autoři: xbalat00 a xsamus00
 
 DROP TABLE CoffeeTypeEvent;
 DROP TABLE CoffeeType;
@@ -337,93 +337,80 @@ WHERE Consumer.ConsumerID IN (
 );
 
 
--- Trigger pro kontrolu, zda uživatel s ID pracovníka existuje v tabulce Consumer.
-CREATE OR REPLACE TRIGGER WorkerIdCheck
-    BEFORE INSERT OR UPDATE ON Worker
+--------- Trigger to count and print new evaluation to ReviewComment when new CommentEvaluation added or updated.  EvaluationStatus is NUMBER CHECK (EvaluationStatus IN (-1, 1))
+CREATE OR REPLACE TRIGGER NotifyReviewCommentEvaluation
+    AFTER INSERT OR UPDATE ON CommentEvaluation
     FOR EACH ROW
 DECLARE
-    consumer_exists NUMBER;
-    consumer_not_exists EXCEPTION;
+    commentAuthorID Consumer.ConsumerID%TYPE;
+    evaluationAuthorID CommentEvaluation.UserID%TYPE;
+    commentAuthor Consumer.UserName%TYPE;
+    evaluationAuthor Consumer.UserName%TYPE;
+    totalEvaluation NUMBER;
+    PRAGMA AUTONOMOUS_TRANSACTION;
 BEGIN
-    SELECT COUNT(*) INTO consumer_exists FROM Consumer WHERE ConsumerID = :new.WorkerID;
-    IF consumer_exists = 0 THEN
-        RAISE consumer_not_exists;
+    SELECT SUM(EvaluationStatus) INTO totalEvaluation FROM CommentEvaluation WHERE CommentID = :new.CommentID;
+    totalEvaluation := totalEvaluation + :new.EvaluationStatus;
+    DBMS_OUTPUT.put_line(totalEvaluation);
+    IF :new.EvaluationStatus = 1 AND totalEvaluation > 0 THEN
+        SELECT ConsumerID INTO evaluationAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
+        SELECT UserName INTO evaluationAuthor FROM Consumer WHERE ConsumerID = evaluationAuthorID;
+        SELECT ConsumerID INTO commentAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
+        SELECT UserName INTO commentAuthor FROM Consumer WHERE ConsumerID = commentAuthorID;
+        DBMS_OUTPUT.put_line('Hey ' || commentAuthor || ', your comment was evaluated positively by ' || evaluationAuthor || ' and now has +' || totalEvaluation || ' positive evaluations.');
     END IF;
 EXCEPTION
-    WHEN consumer_not_exists THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Consumer with ID ' || :new.WorkerID || ' does not exist.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.put_line('Error while processing evaluation.');
 END;
 
--- Vložení vhodných testovacích dat pro trigger.
-INSERT INTO Worker (WorkerID, WorkExperience) VALUES (4, '5 years');
+-- Přidání druhého hodnocení na komentář
+INSERT INTO CommentEvaluation (UserID, CommentID, EvaluationStatus)
+VALUES (1, 2, 1);
 
--- Vložení nevhodných testovacích dat.
-INSERT INTO Worker (WorkerID, WorkExperience) VALUES (99, '5 years');
-
-
--- Trigger pro kontrolu, zda uživatel s ID vlastníka existuje v tabulce Worker.
-CREATE OR REPLACE TRIGGER OwnerIdCheck
-    BEFORE INSERT OR UPDATE ON Owner
-    FOR EACH ROW
-DECLARE
-    worker_exists NUMBER;
-    worker_not_exists EXCEPTION;
-BEGIN
-    SELECT COUNT(*) INTO worker_exists FROM Worker WHERE WorkerID = :new.OwnerID;
-    IF worker_exists = 0 THEN
-        RAISE worker_not_exists;
-    END IF;
-EXCEPTION
-    WHEN worker_not_exists THEN
-        RAISE_APPLICATION_ERROR(-20000, 'Worker with ID ' || :new.OwnerID || ' does not exist.');
-end;
-
--- Vložení vhodných testovacích dat pro trigger.
-INSERT INTO Owner (OwnerID) VALUES (3);
-
--- Vložení nevhodných testovacích dat pro trigger.
-INSERT INTO Owner (OwnerID) VALUES (99);
+-- Pozitivní hodnocení
+UPDATE CommentEvaluation SET EvaluationStatus = 1 WHERE UserID = 1 AND CommentID = 2;
+-- Negativní hodnocení
+UPDATE CommentEvaluation SET EvaluationStatus = -1 WHERE UserID = 1 AND CommentID = 2;
 
 
--- Trigger pro kontrolu, zda kavárna otevírá dříve než zavírá.
+--------- Trigger pro kontrolu, zda se kavárna otevírá dříve než zavírá.
 CREATE OR REPLACE TRIGGER CafeOpenCloseTime
     BEFORE INSERT OR UPDATE ON Cafe
     FOR EACH ROW
 BEGIN
     IF :new.OpenTime >= :new.CloseTime THEN
-        RAISE_APPLICATION_ERROR(-20000, 'Cafe must open earlier then closes.');
+        DBMS_OUTPUT.put_line('Cafe must open earlier then closes.');
     END IF;
 END;
+/
 
--- Vložení nevhodných testovacích dat do tabulky Cafe.
+-- Vložení nevhodných dat do tabulky Cafe.
 INSERT INTO Cafe (CafeID, CafeName, CafeAddress, OpenTime, CloseTime, Capacity, CafeDescription, OwnerID)
-VALUES (8, 'CafeTest', 'Test 1', TO_TIMESTAMP('08:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('07:00:00', 'HH24:MI:SS'), 50, 'Test', 1);
+    VALUES (8, 'CafeTest', 'Test 1', TO_TIMESTAMP('08:00:00', 'HH24:MI:SS'), TO_TIMESTAMP('07:00:00', 'HH24:MI:SS'), 50, 'Test', 1);
 
-
--- Procedura pro výpis recenzí kavárny.
+--------- Procedura pro výpis recenzí kavárny.
 CREATE OR REPLACE PROCEDURE PrintCafeReviews(CafeToCheck IN NUMBER)
     IS
-    v_ConsumerID Review.ConsumerID%TYPE;
-    v_Author Consumer.Username%TYPE;
-    v_CafeExists NUMBER;
-    CafeNotExist EXCEPTION;
+    author Consumer.Username%TYPE;
+    cafeExists NUMBER;
+    cafeNotExist EXCEPTION;
     CURSOR c_Review IS
         SELECT ReviewID, ReviewDescription, Rating, ConsumerID
         FROM Review INNER JOIN CafeReview ON Review.ReviewID = CafeReview.CafeReviewID
         WHERE CafeReview.CafeID = CafeToCheck;
 BEGIN
-    SELECT COUNT(*) INTO v_CafeExists FROM Cafe WHERE CafeID = CafeToCheck;
-    IF v_CafeExists = 0 THEN
-        RAISE CafeNotExist;
+    SELECT COUNT(*) INTO cafeExists FROM Cafe WHERE CafeID = CafeToCheck;
+    IF cafeExists = 0 THEN
+        RAISE cafeNotExist;
     END IF;
 
     FOR review IN c_Review LOOP
-        v_ConsumerID := review.ConsumerID;
-        SELECT UserName INTO v_Author FROM Consumer WHERE ConsumerID = v_ConsumerID;
-        DBMS_OUTPUT.put_line('Review ID: ' || review.ReviewID || ', Description: ' || review.ReviewDescription || ', Rating: ' || review.Rating || ', Author: ' || v_Author);
+        SELECT UserName INTO author FROM Consumer WHERE ConsumerID = review.ConsumerID;
+        DBMS_OUTPUT.put_line('Review ID: ' || review.ReviewID || ', Description: ' || review.ReviewDescription || ', Rating: ' || review.Rating || ', Author: ' || author);
         END LOOP;
 EXCEPTION
-    WHEN CafeNotExist THEN
+    WHEN cafeNotExist THEN
         DBMS_OUTPUT.put_line('The cafe with ID ' || CafeToCheck || ' does not exist.');
 END;
 /
@@ -433,27 +420,27 @@ BEGIN
 END;
 /
 
--- Procedura pro výpis všech událostí zavedených v systému.
+--------- Procedura pro výpis všech událostí zavedených v systému.
 CREATE OR REPLACE PROCEDURE PrintEvents IS
-    CURSOR cafe_cursor IS
+    CURSOR cafeCursor IS
         SELECT CafeID, CafeName, CafeAddress, CafeDescription FROM Cafe;
-    CURSOR event_cursor(cafe_id Cafe.CafeID%TYPE) IS
+    CURSOR eventCursor(cafe_id Cafe.CafeID%TYPE) IS
         SELECT EventDate, Price, Capacity, EventDescription FROM Event WHERE CafeID = cafe_id;
-    event_row event_cursor%ROWTYPE;
+    eventRow eventCursor%ROWTYPE;
 BEGIN
-    FOR cafe_row IN cafe_cursor LOOP
-        OPEN event_cursor(cafe_row.CafeID);
-        FETCH event_cursor INTO event_row;
-        EXIT WHEN event_cursor%NOTFOUND;
+    FOR cafeRow IN cafeCursor LOOP
+        OPEN eventCursor(cafeRow.CafeID);
+        FETCH eventCursor INTO eventRow;
+        EXIT WHEN eventCursor%NOTFOUND;
 
-        DBMS_OUTPUT.put_line('Cafe: ' || cafe_row.CafeName || ' ' || cafe_row.CafeAddress || ' '  || cafe_row.CafeDescription);
+        DBMS_OUTPUT.put_line('Cafe: ' || cafeRow.CafeName || ' ' || cafeRow.CafeAddress || ' '  || cafeRow.CafeDescription);
 
         LOOP
-            EXIT WHEN event_cursor%NOTFOUND;
-            DBMS_OUTPUT.put_line('  Event: ' || event_row.EventDate || ', ' || event_row.Price || 'Kč, capacity: '|| event_row.Capacity || ', ' || event_row.EventDescription);
-            FETCH event_cursor INTO event_row;
+            EXIT WHEN eventCursor%NOTFOUND;
+            DBMS_OUTPUT.put_line('  Event: ' || eventRow.EventDate || ', ' || eventRow.Price || 'Kč, capacity: '|| eventRow.Capacity || ', ' || eventRow.EventDescription);
+            FETCH eventCursor INTO eventRow;
         END LOOP;
-        CLOSE event_cursor;
+        CLOSE eventCursor;
     END LOOP;
 END;
 /
@@ -463,7 +450,7 @@ BEGIN
 END;
 /
 
-
+--------- EXPLAIN PLAN pro dotaz na seznam kaváren a jejich průměrné hodnocení
 DROP INDEX RatingIndex;
 
 EXPLAIN PLAN FOR
@@ -484,6 +471,22 @@ FROM Cafe
 GROUP BY Cafe.CafeName;
 SELECT plan_table_output FROM TABLE(dbms_xplan.display());
 
+
+--------- Vytvoření uživatelské role XBALAT00 a přidělení oprávnění pro tabulky v databázi.
+GRANT ALL ON Consumer TO XBALAT00;
+GRANT ALL ON Worker TO XBALAT00;
+GRANT ALL ON Owner TO XBALAT00;
+GRANT ALL ON Cafe TO XBALAT00;
+GRANT ALL ON CafeWorker TO XBALAT00;
+GRANT ALL ON Event TO XBALAT00;
+GRANT ALL ON Review TO XBALAT00;
+GRANT ALL ON CafeReview TO XBALAT00;
+GRANT ALL ON EventReview TO XBALAT00;
+GRANT ALL ON ReviewComment TO XBALAT00;
+GRANT ALL ON CommentEvaluation TO XBALAT00;
+GRANT ALL ON CoffeeBlend TO XBALAT00;
+GRANT ALL ON CoffeeType TO XBALAT00;
+GRANT ALL ON CoffeeTypeEvent TO XBALAT00;
 
 --------- Materializovany pohled na prumerne hodnoceni kavaren
 --------- Vytvoreni materializovaneho pohledu cafe_avg_rating, ktery obsahuje prumerne hodnoceni kavaren.
@@ -510,7 +513,6 @@ END;
 
 -- Kontrola dat po obnovení pohledu, která nyní odráží nedávné změny v hodnoceních
 SELECT * FROM cafe_avg_rating;
-
 
 
 --------- Vytvoření komplexního dotazu SELECT využívajícího klauzuli WITH a operátor CASE
@@ -542,22 +544,3 @@ SELECT
 FROM CafeRatings;
 -- Tento SELECT dotaz získává data z CTE a kategorizuje kavárny podle kvality na základě průměrného hodnocení.
 -- Tyto informace jsou užitečné pro zákazníky při výběru kavárny a pro majitele kaváren, kteří chtějí sledovat výkon svého podniku.
-
-
-
-
---------- Vytvoření uživatelské role XBALAT00 a přidělení oprávnění pro tabulky v databázi.
-GRANT ALL ON Consumer TO XBALAT00;
-GRANT ALL ON Worker TO XBALAT00;
-GRANT ALL ON Owner TO XBALAT00;
-GRANT ALL ON Cafe TO XBALAT00;
-GRANT ALL ON CafeWorker TO XBALAT00;
-GRANT ALL ON Event TO XBALAT00;
-GRANT ALL ON Review TO XBALAT00;
-GRANT ALL ON CafeReview TO XBALAT00;
-GRANT ALL ON EventReview TO XBALAT00;
-GRANT ALL ON ReviewComment TO XBALAT00;
-GRANT ALL ON CommentEvaluation TO XBALAT00;
-GRANT ALL ON CoffeeBlend TO XBALAT00;
-GRANT ALL ON CoffeeType TO XBALAT00;
-GRANT ALL ON CoffeeTypeEvent TO XBALAT00;
