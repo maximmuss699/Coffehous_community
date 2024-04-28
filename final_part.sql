@@ -337,7 +337,7 @@ WHERE Consumer.ConsumerID IN (
 );
 
 
---------- Trigger to count and print new evaluation to ReviewComment when new CommentEvaluation added or updated.  EvaluationStatus is NUMBER CHECK (EvaluationStatus IN (-1, 1))
+--------- Trigger vypíše hodnocení komentáře, pokud bylo přidáno pozitivní hodnocení
 CREATE OR REPLACE TRIGGER NotifyReviewCommentEvaluation
     AFTER INSERT OR UPDATE ON CommentEvaluation
     FOR EACH ROW
@@ -349,15 +349,19 @@ DECLARE
     totalEvaluation NUMBER;
     PRAGMA AUTONOMOUS_TRANSACTION;
 BEGIN
-    SELECT SUM(EvaluationStatus) INTO totalEvaluation FROM CommentEvaluation WHERE CommentID = :new.CommentID;
-    totalEvaluation := totalEvaluation + :new.EvaluationStatus;
-    DBMS_OUTPUT.put_line(totalEvaluation);
-    IF :new.EvaluationStatus = 1 AND totalEvaluation > 0 THEN
-        SELECT ConsumerID INTO evaluationAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
-        SELECT UserName INTO evaluationAuthor FROM Consumer WHERE ConsumerID = evaluationAuthorID;
-        SELECT ConsumerID INTO commentAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
-        SELECT UserName INTO commentAuthor FROM Consumer WHERE ConsumerID = commentAuthorID;
-        DBMS_OUTPUT.put_line('Hey ' || commentAuthor || ', your comment was evaluated positively by ' || evaluationAuthor || ' and now has +' || totalEvaluation || ' positive evaluations.');
+    IF :new.EvaluationStatus = 1 THEN
+        SELECT SUM(EvaluationStatus) INTO totalEvaluation FROM CommentEvaluation WHERE CommentID = :new.CommentID;
+        totalEvaluation := totalEvaluation + :new.EvaluationStatus;
+        DBMS_OUTPUT.put_line(totalEvaluation);
+        IF totalEvaluation > 0 THEN
+            SELECT ConsumerID INTO evaluationAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
+            SELECT UserName INTO evaluationAuthor FROM Consumer WHERE ConsumerID = evaluationAuthorID;
+            SELECT ConsumerID INTO commentAuthorID FROM ReviewComment WHERE CommentID = :new.CommentID;
+            SELECT UserName INTO commentAuthor FROM Consumer WHERE ConsumerID = commentAuthorID;
+            DBMS_OUTPUT.put_line('Hey ' || commentAuthor || ', your comment was evaluated positively by ' || 
+                                 evaluationAuthor || ' and now has +' || 
+                                 totalEvaluation || ' positive evaluations.');
+        END IF;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
