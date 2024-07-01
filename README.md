@@ -1,7 +1,7 @@
-# School project from Database Systems
 # Coffee House Community 
 
-A community platform for coffee enthusiasts in Brno "Kavárenský Povaleč".
+A community platform for coffee enthusiasts in Brno "Kavárenský Povaleč". 
+
 
 ## Key Features
 - **Overview:** A platform for coffee lovers to:
